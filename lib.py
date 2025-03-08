@@ -41,9 +41,10 @@ dash_app.layout = html.Div([
     dcc.Interval(id='interval-component', interval=5000, n_intervals=0)
 ])
 
+# Add a lock for thread-safe data access
+traffic_data_lock = threading.Lock()
 traffic_data = []
 
-# Background thread for processing traffic data
 def process_traffic():
     global traffic_data
     while cap.isOpened():
@@ -72,18 +73,28 @@ def process_traffic():
         
         # Determine traffic light control decision
         decision = control_traffic(vehicle_count, emergency_detected)
-        cv2.putText(frame, f'Traffic Decision: {decision}', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
         
-        # Store data for visualization
-        traffic_data.append({"timestamp": time.time(), "vehicle_count": vehicle_count, "decision": decision})
-        if len(traffic_data) > 20:
-            traffic_data.pop(0)
+        # Store data for visualization with thread safety
+        with traffic_data_lock:
+            traffic_data.append({
+                "timestamp": time.time(),
+                "vehicle_count": vehicle_count,
+                "decision": decision
+            })
+            if len(traffic_data) > 30:  # Changed from 20 to 30
+                traffic_data.pop(0)
         
         # Display processed video
-        cv2.imshow("Traffic Monitoring", frame)
-        
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+        try:
+            cv2.imshow("Traffic Monitoring", frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+        except:
+            pass
+            
+        # Add a small delay to prevent high CPU usage
+        time.sleep(0.03)
+    
     cap.release()
     cv2.destroyAllWindows()
 
@@ -93,25 +104,35 @@ def process_traffic():
     [Input('interval-component', 'n_intervals')]
 )
 def update_dashboard(n):
-    global traffic_data
-    if len(traffic_data) == 0:
-        return {"data": []}, "Waiting for data..."
-    
-    timestamps = [time.strftime('%H:%M:%S', time.localtime(d['timestamp'])) for d in traffic_data]
-    vehicle_counts = [d['vehicle_count'] for d in traffic_data]
-    decisions = [d['decision'] for d in traffic_data]
+    with traffic_data_lock:
+        if len(traffic_data) == 0:
+            return {"data": [], "layout": {"title": "Traffic Volume Over Time"}}, "Waiting for data..."
+        
+        timestamps = [time.strftime('%H:%M:%S', time.localtime(d['timestamp'])) for d in traffic_data]
+        vehicle_counts = [d['vehicle_count'] for d in traffic_data]
+        decisions = [d['decision'] for d in traffic_data]
     
     fig = {
         "data": [
             {"x": timestamps, "y": vehicle_counts, "type": "line", "name": "Vehicle Count"}
         ],
-        "layout": {"title": "Traffic Volume Over Time"}
+        "layout": {
+            "title": "Traffic Volume Over Time",
+            "xaxis": {"title": "Time"},
+            "yaxis": {"title": "Number of Vehicles"},
+            "margin": {"l": 60, "r": 40, "t": 40, "b": 60}
+        }
     }
     
     latest_decision = f"Latest Decision: {decisions[-1]}"
     return fig, latest_decision
 
 if __name__ == "__main__":
+    # Reduce the interval for more frequent updates
+    dash_app.layout.children[3].interval = 1000  # Update every 1 second
+    
     traffic_thread = threading.Thread(target=process_traffic)
+    traffic_thread.daemon = True  # Make thread daemon so it exits when main program exits
     traffic_thread.start()
-    dash_app.run_server(debug=True)
+    
+    dash_app.run_server(debug=True, port=8050)  # Enable debug mode for development
