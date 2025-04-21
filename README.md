@@ -6,7 +6,7 @@ An AI-powered system that uses YOLOv8 and LSTM to monitor vehicle traffic, detec
 
 ## 📸 Demo
 
-![Demo Screenshot](https://ibb.co/Y4vGhzxf)
+![Demo Screenshot](https://drive.google.com/file/d/1CJ1kZjbURG7FIA8uT53D9MumcAdCQgN4/view?usp=sharing)
 
 🔗 **[Click here to view demo video](https://drive.google.com/file/d/1aijR05oew3JxfjD6C62UK2TpRercrF2t/view?usp=sharing)**
 
@@ -49,14 +49,12 @@ An AI-powered system that uses YOLOv8 and LSTM to monitor vehicle traffic, detec
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/traffic-monitoring-system.git
-   cd traffic-monitoring-system
-2. Install dependencies:
-   pip install -r requirements.txt
-3. Download YOLOv8 model weights:
+   git clone https://github.com/prattyan/traffic-manage
+   cd traffic-manage
+2. Download YOLOv8 model weights:
 # Automatically downloads when using Ultralytics
-4. Add a sample video named traffic_video.mp4 in the root directory or connect to a camera feed.
-5. Run the app:
+3. Add a sample video named traffic_video.mp4 in the root directory or connect to a camera feed.
+4. Run the app:
    python app.py
    
 📁 Folder Structure
@@ -81,6 +79,6 @@ Cloud deployment for large-scale integration
 🧑‍💻 Author
 Prattyan Ghosh
 📧 prattyanghosh@gmail.com
-🔗[ LinkedIn | Portfolio] (https://www.linkedin.com/in/prattyan-ghosh-26217822a/)
+🔗[ LinkedIn | Portfolio](https://www.linkedin.com/in/prattyan-ghosh-26217822a/)
 
 
