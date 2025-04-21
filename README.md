@@ -7,6 +7,7 @@ An AI-powered system that uses YOLOv8 and LSTM to monitor vehicle traffic, detec
 ## 📸 Demo
 
 ![Demo Screenshot](https://i.postimg.cc/Zn2ZpLh8/Chat-GPT-Image-Apr-20-2025-02-37-11-PM.png)
+
 🔗 **[Click here to view demo video](https://drive.google.com/file/d/1aijR05oew3JxfjD6C62UK2TpRercrF2t/view?usp=sharing)**
 
 ---
