@@ -9,6 +9,7 @@ from ultralytics import YOLO
 from keras.models import load_model
 import threading
 
+
 # Load pre-trained YOLO model for vehicle detection
 yolo_model = YOLO("yolov8n.pt")  # Using YOLOv8 nano for real-time processing
 
