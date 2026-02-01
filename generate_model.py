@@ -14,7 +14,7 @@ model = Sequential([
 model.compile(optimizer='adam', loss='mse')
 
 print("Generating model weights...")
-model.fit(X_train, y_train, epochs=1, verbose=0)
+model.fit(X_train, y_train, epochs=50, validation_split=0.2, verbose=1)
 
 model.save("traffic_lstm.h5")
 print("✅ Success! 'traffic_lstm.h5' has been generated.")
