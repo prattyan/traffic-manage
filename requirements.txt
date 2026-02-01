@@ -5,6 +5,6 @@ ultralytics
 tensorflow
 keras
 dash
-dash-core-components
-dash-html-components
+dash
+python-dateutil
 python-dateutil
