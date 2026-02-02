@@ -149,7 +149,7 @@ def update_dashboard(n):
     global traffic_data
     
     with lock:
-         data_snapshot = list(traffic_data)
+        data_snapshot = list(traffic_data)
         decision_snapshot = current_decision
         count_snapshot = current_vehicle_count
     
