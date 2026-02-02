@@ -1,0 +1,10 @@
+numpy
+torch
+opencv-python
+ultralytics
+tensorflow
+keras
+dash
+dash
+python-dateutil
+python-dateutil

@@ -14,7 +14,7 @@ import threading
 yolo_model = YOLO("yolov8n.pt")  # Using YOLOv8 nano for real-time processing
 
 # Load pre-trained LSTM model for traffic prediction
-lstm_model = load_model("traffic_lstm.h5")
+lstm_model = load_model("traffic_lstm.h5", compile=False)
 
 # Define traffic light control logic
 def control_traffic(vehicle_count, emergency_detected):
@@ -125,4 +125,4 @@ def update_dashboard(n):
 if __name__ == "__main__":
     traffic_thread = threading.Thread(target=process_traffic)
     traffic_thread.start()
-    dash_app.run_server(debug=True)
+    dash_app.run(debug=True)
