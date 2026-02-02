@@ -44,52 +44,55 @@ def generate_frames():
     
     cap = cv2.VideoCapture("traffic_video.mp4")
     
-    while True:
-        success, frame = cap.read()
-        if not success:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-            continue
+    try:
+        while True:
+            success, frame = cap.read()
+            if not success:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                continue
 
-        results = yolo_model(frame)
-        vehicle_count = 0
-        emergency_detected = detect_emergency_vehicle(results)
-        
-        for result in results:
-            for box in result.boxes:
-                x1, y1, x2, y2 = map(int, box.xyxy[0])
-                conf = box.conf[0].item()
-                label = result.names[int(box.cls[0].item())]
-                
-                if label in ['car', 'bus', 'truck', 'motorbike'] and conf > 0.5:
-                    vehicle_count += 1
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                elif label in ['ambulance', 'fire truck', 'police car'] and conf > 0.5:
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
-                    cv2.putText(frame, "EMERGENCY", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            results = yolo_model(frame)
+            vehicle_count = 0
+            emergency_detected = detect_emergency_vehicle(results)
+            
+            for result in results:
+                for box in result.boxes:
+                    x1, y1, x2, y2 = map(int, box.xyxy[0])
+                    conf = box.conf[0].item()
+                    label = result.names[int(box.cls[0].item())]
+                    
+                    if label in ['car', 'bus', 'truck', 'motorbike'] and conf > 0.5:
+                        vehicle_count += 1
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    elif label in ['ambulance', 'fire truck', 'police car'] and conf > 0.5:
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                        cv2.putText(frame, "EMERGENCY", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
-        traffic_state = np.array([[vehicle_count]])
-        # predicted_traffic = lstm_model.predict(traffic_state) # Will use if displaying prediction
-        
-        decision = control_traffic(vehicle_count, emergency_detected)
-        
-        with lock:
-            current_vehicle_count = vehicle_count
-            current_decision = decision
-            traffic_data.append({
-                "timestamp": time.time(),
-                "vehicle_count": vehicle_count,
-                "decision": decision
-            })
-            if len(traffic_data) > 30:
-                traffic_data.pop(0)
+            traffic_state = np.array([[vehicle_count]])
+            # predicted_traffic = lstm_model.predict(traffic_state) # Will use if displaying prediction
+            
+            decision = control_traffic(vehicle_count, emergency_detected)
+            
+            with lock:
+                current_vehicle_count = vehicle_count
+                current_decision = decision
+                traffic_data.append({
+                    "timestamp": time.time(),
+                    "vehicle_count": vehicle_count,
+                    "decision": decision
+                })
+                if len(traffic_data) > 30:
+                    traffic_data.pop(0)
 
-        cv2.putText(frame, f'Status: {decision}', (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
-        
-        ret, buffer = cv2.imencode('.jpg', frame)
-        frame = buffer.tobytes()
-        
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+            cv2.putText(frame, f'Status: {decision}', (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+            
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame = buffer.tobytes()
+            
+            yield (b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+    finally:
+        cap.release()
 
 @server.route('/video_feed')
 def video_feed():
