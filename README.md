@@ -1,85 +1,123 @@
-# 🚦 Real-Time Traffic Monitoring and Control System
+# 🚦 Real-Time Traffic Monitoring & Intelligent Control System
 
-An AI-powered system that uses YOLOv8 and LSTM to monitor vehicle traffic, detect emergency vehicles, and intelligently control traffic lights in real time. Includes a live dashboard for visualization.
+An **AI-powered smart traffic management system** that leverages **YOLOv8** for real-time vehicle detection and **LSTM neural networks** for traffic flow prediction. The system dynamically controls traffic signals, prioritizes emergency vehicles, and provides a live visualization dashboard.
 
 ---
 
 ## 📸 Demo
 
-![Demo Screenshot](https://i.postimg.cc/Zn2ZpLh8/Chat-GPT-Image-Apr-20-2025-02-37-11-PM.png)
+![System Demo](https://i.postimg.cc/Zn2ZpLh8/Chat-GPT-Image-Apr-20-2025-02-37-11-PM.png)
 
-🔗 **[Click here to view demo video](https://drive.google.com/file/d/1aijR05oew3JxfjD6C62UK2TpRercrF2t/view?usp=sharing)**
+🎥 **[Watch the Demo Video](https://drive.google.com/file/d/1aijR05oew3JxfjD6C62UK2TpRercrF2t/view?usp=sharing)**
 
 ---
 
-
-## 🧠 Features
+## 🧠 Key Features
 
 - 🔍 Real-time vehicle detection using **YOLOv8**
-- 🚨 Emergency vehicle priority handling
-- 📈 Traffic prediction using **LSTM neural network**
-- 🟢 Adaptive traffic light control (extend/shorten/priority logic)
-- 📊 Live dashboard using **Dash** (vehicle count + decisions)
-- 🎥 Works with video file or live camera feed
+- 🚨 Emergency vehicle recognition and priority control
+- 📈 Traffic congestion prediction using **LSTM neural networks**
+- 🟢 Adaptive traffic signal control
+  - Dynamic green light extension
+  - Idle time reduction
+  - Emergency override logic
+- 📊 Live dashboard visualization
+  - Vehicle counts
+  - Traffic decisions
+  - Real-time updates
+- 🎥 Supports video files and live camera feeds
 
 ---
 
-## 🧰 Tech Stack
+## 🧰 Technology Stack
 
-| Component        | Tool / Library           |
-|------------------|---------------------------|
-| Object Detection | [YOLOv8 - Ultralytics](https://github.com/ultralytics/ultralytics) |
-| Video Processing | OpenCV                    |
-| Prediction Model | Keras / TensorFlow (LSTM) |
-| Dashboard UI     | Plotly Dash               |
-| Backend Logic    | Python (threading)        |
-
----
-
-## 🚀 How It Works
-
-1. **Video Input**: Captures real-time video using OpenCV
-2. **Vehicle Detection**: YOLOv8 detects cars, buses, bikes, emergency vehicles
-3. **Traffic Prediction**: LSTM model predicts traffic congestion based on vehicle count
-4. **Decision Making**: System adjusts traffic light rules based on vehicle flow & emergency status
-5. **Dashboard**: Dash updates every few seconds to show live vehicle count + decision history
+| Layer               | Tools / Libraries |
+|--------------------|------------------|
+| Object Detection   | YOLOv8 (Ultralytics) |
+| Video Processing  | OpenCV |
+| Prediction Model  | TensorFlow / Keras (LSTM) |
+| Dashboard UI      | Plotly Dash |
+| Backend Logic     | Python (Multithreading) |
 
 ---
 
-## 🖥️ Installation
+## 🚀 System Workflow
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/prattyan/traffic-manage
-   cd traffic-manage
-2. Download YOLOv8 model weights:
-# Automatically downloads when using Ultralytics
-3. Add a sample video named traffic_video.mp4 in the root directory or connect to a camera feed.
-4. Run the app:
-   python app.py
-   
-📁 Folder Structure
+1. **Video Input**  
+   Captures real-time video from a camera or video file using OpenCV
+
+2. **Vehicle Detection**  
+   YOLOv8 detects cars, buses, bikes, and emergency vehicles
+
+3. **Traffic Prediction**  
+   LSTM model predicts congestion levels based on vehicle density
+
+4. **Decision Engine**  
+   Adjusts traffic signal timing dynamically and prioritizes emergency vehicles
+
+5. **Live Dashboard**  
+   Displays vehicle count and traffic decisions with periodic updates
+
+---
+
+## 🖥️ Installation & Setup
+
+### 1️⃣ Clone the Repository
+```bash
+git clone https://github.com/prattyan/traffic-manage
+cd traffic-manage
+```
+
+### 2️⃣ Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 3️⃣ Prepare Input
+- Add a sample video named `traffic_video.mp4`  
+**OR**
+- Connect a live camera feed
+
+> YOLOv8 model weights are automatically downloaded via Ultralytics.
+
+### 4️⃣ Run the Application
+```bash
+python app.py
+```
+
+---
+
+## 📁 Project Structure
+
+```
 📂 traffic-monitoring-system/
 │
-├── traffic_video.mp4          # Sample traffic footage
-├── traffic_lstm.h5            # Pre-trained LSTM model
-├── yolov8n.pt                 # YOLOv8-nano weights
-├── app.py                     # Main application script
-├── requirements.txt
-└── README.md
+├── traffic_video.mp4       # Sample traffic footage
+├── traffic_lstm.h5         # Pre-trained LSTM model
+├── yolov8n.pt              # YOLOv8 nano weights
+├── app.py                  # Main application script
+├── requirements.txt        # Dependencies
+└── README.md               # Project documentation
+```
 
-🔮 Future Enhancements
-Integrate multiple camera feeds
+---
 
-Store historical data in a database
+## 🔮 Future Enhancements
 
-Real-time alerts to city management systems
+- 📡 Integration of multiple camera feeds
+- 🗄️ Storage of historical traffic data
+- 📢 Real-time alerts to traffic authorities
+- ☁️ Cloud deployment for large-scale use
+- 🧠 Reinforcement learning for smarter signal optimization
 
-Cloud deployment for large-scale integration
+---
 
-🧑‍💻 Author
-Prattyan Ghosh
-📧 prattyanghosh@gmail.com
-🔗[ LinkedIn | Portfolio](https://www.linkedin.com/in/prattyan-ghosh-26217822a/)
+## 🧑‍💻 Author
 
+**Prattyan Ghosh**  
+📧 Email: prattyanghosh@gmail.com  
+🔗 [LinkedIn](https://www.linkedin.com/in/prattyanghosh) | [Portfolio](https://prattyanghosh.xyz)
 
+---
+
+⭐ If you find this project useful, consider giving it a star!
