@@ -1,0 +1,7 @@
+dash>=2.0
+opencv-python
+torch
+ultralytics>=8.0
+numpy
+python-dotenv
+Pillow

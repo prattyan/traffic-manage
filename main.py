@@ -1,3 +1,11 @@
+from config import Config
+import logging
+
+logging.basicConfig(
+    level=getattr(logging, Config.LOG_LEVEL, logging.INFO),
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 import cv2
 import torch
 import numpy as np
