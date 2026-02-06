@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  traffic_monitor:
+    build: .
+    # network_mode: "host"  <-- DELETE THIS LINE
+    ports:                  # <-- Make sure this is white (active)
+      - "8050:8050"         # <-- Make sure this is white (active)
+    volumes:
+      - .:/app
+    environment:
+      - CHOKIDAR_USEPOLLING=true
