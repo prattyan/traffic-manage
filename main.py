@@ -6,7 +6,7 @@ import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
 from ultralytics import YOLO
-from keras.models import load_model
+from tensorflow.keras.models import load_model
 import threading
 from threading import Lock
 from dataclasses import dataclass, field
