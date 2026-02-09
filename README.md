@@ -82,30 +82,55 @@ pip install -r requirements.txt
 
 ### 4️⃣ Run the Application
 ```bash
-python app.py
+python main.py
 ```
+
+> **Optional:** Run the Django API for persistent storage and analytics endpoints:
+> ```bash
+> cd traffic_manage && python manage.py migrate && python manage.py runserver
+> ```
+> Then set `TRAFFIC_API_URL=http://127.0.0.1:8000/api/traffic-snapshots/` to send snapshots from the Dash app to the API.
 
 ---
 
 ## 📁 Project Structure
 
 ```
-📂 traffic-monitoring-system/
+📂 traffic-manage/
 │
+├── main.py                 # Main application (Dash + YOLO + LSTM)
+├── analytics.py            # Analytics helpers (stats, CSV export)
 ├── traffic_video.mp4       # Sample traffic footage
 ├── traffic_lstm.h5         # Pre-trained LSTM model
 ├── yolov8n.pt              # YOLOv8 nano weights
-├── app.py                  # Main application script
 ├── requirements.txt        # Dependencies
-└── README.md               # Project documentation
+├── data/                   # Traffic session CSV logs (created at runtime)
+├── traffic_manage/         # Django API (optional)
+│   ├── api/                # REST API + TrafficSnapshot model
+│   └── manage.py
+└── README.md
 ```
+
+---
+
+## 📊 Data & Analytics (for data scientists / analysts)
+
+- **Session statistics** – The dashboard shows live session stats: mean/min/max vehicle count, standard deviation, congestion ratio, and elapsed time.
+- **Historical CSV** – Every 5 seconds, a snapshot is appended to `data/traffic_session_YYYYMMDD.csv` (timestamp, vehicle_count, cars, trucks, bikes, pedestrians, congestion_pct, decision). Use these files for offline analysis, reporting, or model retraining.
+- **Analytics module** – `analytics.py` provides:
+  - `compute_summary_stats(values)` – mean, std, min, max, median, percentiles
+  - `compute_congestion_stats(traffic_history)` – congestion and high-density ratios
+  - `session_summary(...)` – combined session metrics
+  - `export_session_csv(rows)` – export records to CSV
+- **Django API (optional)** – When the API is running, the app can POST snapshots to `/api/traffic-snapshots/`. Use:
+  - `GET /api/traffic-snapshots/` – list snapshots
+  - `GET /api/traffic-snapshots/summary/?hours=24` – aggregated stats (count, mean, std, min, max, mean_congestion) for the last N hours
 
 ---
 
 ## 🔮 Future Enhancements
 
 - 📡 Integration of multiple camera feeds
-- 🗄️ Storage of historical traffic data
 - 📢 Real-time alerts to traffic authorities
 - ☁️ Cloud deployment for large-scale use
 - 🧠 Reinforcement learning for smarter signal optimization

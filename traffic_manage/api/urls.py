@@ -1,13 +1,20 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import VehicleCountViewSet, SignalStateViewSet, PredictionViewSet, LogViewSet
+from .views import (
+    VehicleCountViewSet,
+    SignalStateViewSet,
+    PredictionViewSet,
+    LogViewSet,
+    TrafficSnapshotViewSet,
+)
 
 router = DefaultRouter()
-router.register(r'vehicle-counts', VehicleCountViewSet)
-router.register(r'signal-state', SignalStateViewSet)
-router.register(r'predictions', PredictionViewSet)
-router.register(r'logs', LogViewSet)
+router.register(r"vehicle-counts", VehicleCountViewSet)
+router.register(r"signal-state", SignalStateViewSet)
+router.register(r"predictions", PredictionViewSet)
+router.register(r"logs", LogViewSet)
+router.register(r"traffic-snapshots", TrafficSnapshotViewSet)
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path("", include(router.urls)),
 ]

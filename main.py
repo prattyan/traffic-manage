@@ -18,6 +18,18 @@ from datetime import datetime
 from collections import deque
 import plotly.graph_objs as go
 import plotly.express as px
+import os
+
+# Analytics and historical data (data scientist / analyst support)
+try:
+    from analytics import (
+        session_summary,
+        compute_summary_stats,
+        export_session_csv,
+    )
+    ANALYTICS_AVAILABLE = True
+except ImportError:
+    ANALYTICS_AVAILABLE = False
 
 # --- GLOBAL SHARED MEMORY ---
 traffic_history = deque(maxlen=100)
@@ -27,6 +39,61 @@ prediction_data = []
 current_decision = "Initializing..."
 system_status = {"fps": 0, "uptime": 0, "detections": 0}
 start_time = time.time()
+
+# Historical data for analysts: in-memory snapshots + CSV log
+traffic_snapshots = []
+_session_csv_path = None
+
+
+def _snapshot_row(vehicle_count, congestion, decision_text):
+    """Build one snapshot dict for CSV or API."""
+    return {
+        "timestamp": datetime.now().isoformat(),
+        "vehicle_count": vehicle_count,
+        "cars": vehicle_types.get("cars", 0),
+        "trucks": vehicle_types.get("trucks", 0),
+        "bikes": vehicle_types.get("bikes", 0),
+        "pedestrians": vehicle_types.get("pedestrians", 0),
+        "congestion_pct": congestion,
+        "decision": decision_text,
+    }
+
+
+def _log_snapshot_to_csv(vehicle_count, congestion, decision_text):
+    """Append one traffic snapshot to the session CSV (for later analysis)."""
+    global _session_csv_path
+    os.makedirs("data", exist_ok=True)
+    if _session_csv_path is None:
+        _session_csv_path = os.path.join(
+            "data",
+            f"traffic_session_{datetime.now().strftime('%Y%m%d')}.csv",
+        )
+    row = _snapshot_row(vehicle_count, congestion, decision_text)
+    file_exists = os.path.isfile(_session_csv_path)
+    try:
+        with open(_session_csv_path, "a", newline="", encoding="utf-8") as f:
+            w = __import__("csv").DictWriter(f, fieldnames=row.keys())
+            if not file_exists:
+                w.writeheader()
+            w.writerow(row)
+    except Exception as e:
+        print(f"⚠️ Could not write traffic log: {e}")
+    # Optionally POST to Django API when running (for analysts)
+    try:
+        import urllib.request
+        import json
+        api_url = os.environ.get("TRAFFIC_API_URL", "http://127.0.0.1:8000/api/traffic-snapshots/")
+        payload = {k: v for k, v in row.items() if k != "timestamp"}
+        payload["timestamp"] = row["timestamp"]
+        req = urllib.request.Request(
+            api_url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=1)
+    except Exception:
+        pass  # API not running or unreachable; ignore
 
 # --- LOAD MODELS ---
 print("🔄 Loading YOLO Model...")
@@ -395,7 +462,24 @@ dash_app.layout = dbc.Container([
         ], lg=6, className="mb-4"),
     ]),
 
-    # Row 5: Congestion Progress
+    # Row 5: Session statistics (for data analysts)
+    dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardHeader([
+                    html.Div([
+                        html.Span("📊", style={'marginRight': '10px'}),
+                        html.Span("SESSION STATISTICS", style={'fontWeight': '600'})
+                    ], className="d-flex align-items-center")
+                ], style={'background': 'transparent', 'borderBottom': '1px solid rgba(255,255,255,0.1)'}),
+                dbc.CardBody([
+                    html.Div(id="session-stats", className="small")
+                ])
+            ], className="glass-card")
+        ], className="mb-4"),
+    ]),
+
+    # Row 6: Congestion Progress
     dbc.Row([
         dbc.Col([
             dbc.Card([
@@ -556,7 +640,8 @@ def process_traffic():
         Output('congestion-bar', 'color'),
         Output('congestion-status', 'children'),
         Output('current-time', 'children'),
-        Output('system-logs', 'children')
+        Output('system-logs', 'children'),
+        Output('session-stats', 'children'),
     ],
     [Input('interval-component', 'n_intervals')]
 )
@@ -664,12 +749,34 @@ def update_dashboard(n):
     ]
     all_logs = emergency_log[-10:] + default_logs if emergency_log else default_logs
     logs_display = html.Div([html.P(log, className="mb-1") for log in all_logs[-8:]])
-    
+
+    # Log snapshot to CSV every 5 seconds (for analysts)
+    if n > 0 and n % 5 == 0:
+        _log_snapshot_to_csv(vehicle_count, congestion, decision_text)
+
+    # Session statistics card (data analyst support)
+    if ANALYTICS_AVAILABLE and history_list:
+        try:
+            summary = session_summary(traffic_history, vehicle_types, start_time)
+            st = summary["traffic_stats"]
+            co = summary["congestion"]
+            session_stats_children = html.Div([
+                html.P([html.Strong("Vehicle count: "), f"mean {st['mean']}, min {st['min']}, max {st['max']}, σ={st['std']} (n={st['count']})"], className="mb-1"),
+                html.P([html.Strong("Congestion: "), f"ratio {co['congestion_ratio']}%, high-density % {co['high_density_ratio']}"], className="mb-1"),
+                html.P([html.Strong("Elapsed: "), f"{summary['elapsed_seconds']} s"], className="mb-0"),
+                html.P(["Data logged to ", html.Code("data/traffic_session_*.csv"), " for export."], className="text-muted mt-2 mb-0 small"),
+            ])
+        except Exception:
+            session_stats_children = html.P("Session stats will appear as data accumulates.", className="text-muted mb-0")
+    else:
+        session_stats_children = html.P("Enable analytics module for session statistics.", className="text-muted mb-0")
+
     return (
         traffic_fig, pie_fig, pred_fig,
         str(vehicle_count), f"{congestion}%", str(fps), str(uptime),
         decision_badge, congestion, bar_color, congestion_status,
-        current_time, logs_display
+        current_time, logs_display,
+        session_stats_children,
     )
 
 # --- MAIN ---
