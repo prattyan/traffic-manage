@@ -1,6 +1,7 @@
 # Generated migration for TrafficSnapshot (analytics support)
 
 from django.db import migrations, models
+from django.utils import timezone
 
 
 class Migration(migrations.Migration):
@@ -14,7 +15,7 @@ class Migration(migrations.Migration):
             name="TrafficSnapshot",
             fields=[
                 ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("timestamp", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("timestamp", models.DateTimeField(default=timezone.now, db_index=True)),
                 ("vehicle_count", models.IntegerField(default=0)),
                 ("cars", models.IntegerField(default=0)),
                 ("trucks", models.IntegerField(default=0)),

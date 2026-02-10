@@ -79,22 +79,25 @@ def _log_snapshot_to_csv(vehicle_count, congestion, decision_text):
             w.writerow(row)
     except Exception as e:
         print(f"⚠️ Could not write traffic log: {e}")
-    # Optionally POST to Django API when running (for analysts)
-    try:
-        import urllib.request
-        import json
-        api_url = os.environ.get("TRAFFIC_API_URL", "http://127.0.0.1:8000/api/traffic-snapshots/")
-        payload = {k: v for k, v in row.items() if k != "timestamp"}
-        payload["timestamp"] = row["timestamp"]
-        req = urllib.request.Request(
-            api_url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        urllib.request.urlopen(req, timeout=1)
-    except Exception:
-        pass  # API not running or unreachable; ignore
+    # Optionally POST to Django API when running (for analysts).
+    # Opt-in only: requires TRAFFIC_API_URL to be set explicitly.
+    api_url = os.environ.get("TRAFFIC_API_URL")
+    if api_url:
+        try:
+            import urllib.request
+            import json
+            payload = {k: v for k, v in row.items() if k != "timestamp"}
+            payload["timestamp"] = row["timestamp"]
+            req = urllib.request.Request(
+                api_url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            urllib.request.urlopen(req, timeout=0.5)
+        except Exception as e:
+            # Log once per failure without breaking the dashboard loop.
+            print(f"⚠️ Could not POST traffic snapshot to API ({api_url}): {e}")
 
 # --- LOAD MODELS ---
 print("🔄 Loading YOLO Model...")

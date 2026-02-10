@@ -34,8 +34,11 @@ class LogViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = LogSerializer
 
 
-class TrafficSnapshotViewSet(viewsets.ModelViewSet):
-    """CRUD for traffic snapshots; used by the Dash app to persist real-time data."""
+class TrafficSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only access to traffic snapshots for analytics.
+    Snapshots are typically written by internal services or batch jobs.
+    """
     queryset = TrafficSnapshot.objects.all().order_by("-timestamp")
     serializer_class = TrafficSnapshotSerializer
 
@@ -46,7 +49,11 @@ class TrafficSnapshotViewSet(viewsets.ModelViewSet):
         Optional query: ?hours=24 to limit to last N hours.
         """
         qs = TrafficSnapshot.objects.all()
-        hours = request.query_params.get("hours", type=int)
+        hours_raw = request.query_params.get("hours")
+        try:
+            hours = int(hours_raw) if hours_raw is not None else None
+        except (TypeError, ValueError):
+            hours = None
         if hours is not None and hours > 0:
             from datetime import timedelta
             since = timezone.now() - timedelta(hours=hours)

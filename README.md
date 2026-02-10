@@ -95,7 +95,7 @@ python main.py
 
 ## 📁 Project Structure
 
-```
+```text
 📂 traffic-manage/
 │
 ├── main.py                 # Main application (Dash + YOLO + LSTM)
