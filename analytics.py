@@ -7,6 +7,7 @@ from collections import deque
 from datetime import datetime
 import csv
 import os
+import time
 from typing import Any, Dict, List, Optional, Union
 
 
@@ -91,7 +92,7 @@ def session_summary(
     """
     stats = compute_summary_stats(traffic_history)
     congestion = compute_congestion_stats(traffic_history)
-    elapsed_sec = max(0, __import__("time").time() - start_time)
+    elapsed_sec = max(0, time.time() - start_time)
     total_vehicles = sum(vehicle_types.values()) if vehicle_types else 0
     return {
         "traffic_stats": stats,

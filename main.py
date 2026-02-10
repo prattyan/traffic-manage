@@ -19,6 +19,7 @@ from collections import deque
 import plotly.graph_objs as go
 import plotly.express as px
 import os
+import csv
 
 # Analytics and historical data (data scientist / analyst support)
 try:
@@ -72,7 +73,7 @@ def _log_snapshot_to_csv(vehicle_count, congestion, decision_text):
     file_exists = os.path.isfile(_session_csv_path)
     try:
         with open(_session_csv_path, "a", newline="", encoding="utf-8") as f:
-            w = __import__("csv").DictWriter(f, fieldnames=row.keys())
+            w = csv.DictWriter(f, fieldnames=row.keys())
             if not file_exists:
                 w.writeheader()
             w.writerow(row)
