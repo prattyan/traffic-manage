@@ -53,10 +53,12 @@ Use clear and descriptive branch names, such as:
 
 ## 📦 Project Structure Overview
 
-- `app.py` – Main application logic  
-- `traffic_lstm.h5` – Pre-trained LSTM model  
-- `yolov8n.pt` – YOLOv8 model weights  
-- `requirements.txt` – Project dependencies  
+- `main.py` – Main application (Dash dashboard + YOLO + LSTM)
+- `analytics.py` – Analytics helpers for data scientists (stats, CSV export)
+- `traffic_manage/` – Optional Django API and REST endpoints
+- `traffic_lstm.h5` – Pre-trained LSTM model
+- `yolov8n.pt` – YOLOv8 model weights
+- `requirements.txt` – Project dependencies
 
 Please place new files in appropriate directories and update documentation if needed.
 
