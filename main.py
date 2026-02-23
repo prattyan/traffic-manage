@@ -1,8 +1,7 @@
 """
-🚦 TRAFFIC AI COMMAND CENTER v3.0
+🚦 TRAFFIC AI COMMAND CENTER v4.0 (Multi-Intersection)
 Advanced Real-Time Traffic Management System
-Developed by: Aditya Patra
-Features: YOLOv8 Detection, LSTM Prediction, Glassmorphic UI
+Features: YOLOv8 Detection, LSTM Prediction, Glassmorphic UI, Multi-Camera Support
 """
 
 import cv2
@@ -18,15 +17,27 @@ from datetime import datetime
 from collections import deque
 import plotly.graph_objs as go
 import plotly.express as px
+import os
 
-# --- GLOBAL SHARED MEMORY ---
-traffic_history = deque(maxlen=100)
-vehicle_types = {"cars": 0, "trucks": 0, "bikes": 0, "pedestrians": 0}
-emergency_log = []
-prediction_data = []
-current_decision = "Initializing..."
-system_status = {"fps": 0, "uptime": 0, "detections": 0}
-start_time = time.time()
+# --- GLOBAL SHARED MEMORY (Per Intersection) ---
+class IntersectionState:
+    def __init__(self, intersection_id, name, camera_source):
+        self.id = intersection_id
+        self.name = name
+        self.camera_source = camera_source
+        self.traffic_history = deque(maxlen=100)
+        self.vehicle_types = {"cars": 0, "trucks": 0, "bikes": 0, "pedestrians": 0}
+        self.emergency_log = []
+        self.current_decision = "Initializing..."
+        self.system_status = {"fps": 0, "uptime": 0, "detections": 0}
+        self.start_time = time.time()
+
+# Define multiple intersections here
+intersections = {
+    "cam1": IntersectionState("cam1", "Main St & 1st Ave", 0),
+    # Add more cameras/videos here. E.g., "cam2": IntersectionState("cam2", "Broadway & 42nd St", "video2.mp4")
+    "cam2": IntersectionState("cam2", "Broadway & 42nd St", "traffic_video.mp4") 
+}
 
 # --- LOAD MODELS ---
 print("🔄 Loading YOLO Model...")
@@ -224,6 +235,22 @@ body {
     max-height: 150px;
     overflow-y: auto;
 }
+
+.nav-tabs .nav-link {
+    color: rgba(255, 255, 255, 0.6);
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 1px;
+}
+
+.nav-tabs .nav-link.active {
+    color: #00f5ff;
+    background-color: transparent;
+    border-color: transparent;
+    border-bottom: 2px solid #00f5ff;
+    text-shadow: 0 0 10px rgba(0, 245, 255, 0.5);
+}
 """
 
 # --- MODERN DASHBOARD SETUP ---
@@ -241,7 +268,7 @@ dash_app.index_string = f'''
 <html>
     <head>
         {{%metas%}}
-        <title>🚦 Traffic AI Command Center v3.0</title>
+        <title>🚦 Traffic AI Command Center v4.0</title>
         {{%favicon%}}
         {{%css%}}
         <style>{CUSTOM_CSS}</style>
@@ -269,7 +296,7 @@ def create_metric_card(title, value_id, icon, color="#00f5ff"):
         ])
     ], className="glass-card h-100")
 
-def create_status_card(title, status, description, icon):
+def create_status_card(title, status, description_id, default_desc, icon):
     return dbc.Card([
         dbc.CardBody([
             html.Div([
@@ -280,7 +307,7 @@ def create_status_card(title, status, description, icon):
                 html.Span(className="status-indicator status-online"),
                 html.Span(status, style={'color': '#00ff88', 'fontWeight': '700'})
             ], className="mb-2"),
-            html.P(description, className="text-muted small mb-0")
+            html.P(default_desc, id=description_id, className="text-muted small mb-0")
         ])
     ], className="glass-card h-100")
 
@@ -301,13 +328,23 @@ dash_app.layout = dbc.Container([
                 ], width="auto"),
                 dbc.Col([
                     html.Div([
-                        html.Span("v3.0", className="badge bg-primary me-2"),
+                        html.Span("v4.0", className="badge bg-primary me-2"),
                         html.Span(id="current-time", className="text-muted")
                     ])
                 ], width="auto", className="ms-auto")
             ], align="center", className="w-100")
         ], fluid=True)
     ], className="navbar-glass mb-4 py-3", dark=True),
+
+    # Intersection Tabs
+    dbc.Tabs(
+        id="intersection-tabs",
+        active_tab=list(intersections.keys())[0],
+        children=[
+            dbc.Tab(label=state.name, tab_id=iid) for iid, state in intersections.items()
+        ],
+        className="mb-4"
+    ),
 
     # Row 1: Key Metrics
     dbc.Row([
@@ -319,9 +356,9 @@ dash_app.layout = dbc.Container([
 
     # Row 2: Status Cards
     dbc.Row([
-        dbc.Col(create_status_card("Camera Feed", "ACTIVE", "ID: CAM-01 | 1080p @ 30fps", "📍"), lg=3, md=6, className="mb-4"),
-        dbc.Col(create_status_card("AI Engine", "ONLINE", "YOLOv8n + LSTM Hybrid", "🧠"), lg=3, md=6, className="mb-4"),
-        dbc.Col(create_status_card("Data Pipeline", "STREAMING", "Real-time Processing", "🔄"), lg=3, md=6, className="mb-4"),
+        dbc.Col(create_status_card("Camera Feed", "ACTIVE", "camera-status-desc", "ID: CAM-01 | 1080p @ 30fps", "📍"), lg=3, md=6, className="mb-4"),
+        dbc.Col(create_status_card("AI Engine", "ONLINE", "ai-status-desc", "YOLOv8n + LSTM Hybrid", "🧠"), lg=3, md=6, className="mb-4"),
+        dbc.Col(create_status_card("Data Pipeline", "STREAMING", "pipeline-status-desc", "Real-time Processing", "🔄"), lg=3, md=6, className="mb-4"),
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
@@ -426,7 +463,7 @@ dash_app.layout = dbc.Container([
                 html.P([
                     "Developed with 💜 by ",
                     html.Span("Aditya Patra", className="neon-text"),
-                    " | Traffic AI Command Center v3.0"
+                    " | Traffic AI Command Center v4.0"
                 ], className="text-center text-muted mb-0")
             ], className="py-3")
         ])
@@ -438,15 +475,16 @@ dash_app.layout = dbc.Container([
 
 ], fluid=True, style={'padding': '20px'})
 
-# --- VIDEO THREAD (STABLE WINDOWS VERSION) ---
-def process_traffic():
-    global traffic_history, vehicle_types, current_decision, system_status, emergency_log
+# --- VIDEO THREAD (MULTI-CAMERA SUPPORT) ---
+def process_traffic(intersection_id):
+    state = intersections[intersection_id]
+    print(f"📸 STARTING CAMERA {state.camera_source} for {state.name}...")
     
-    print("📸 STARTING WEBCAM (DirectShow Mode)...")
-    # -------------------------------------------------------------------------
-    # FIX FOR WINDOWS FREEZE: Use cv2.CAP_DSHOW
-    # -------------------------------------------------------------------------
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    # FIX FOR WINDOWS FREEZE: Use cv2.CAP_DSHOW for webcams
+    if isinstance(state.camera_source, int) and os.name == 'nt':
+        cap = cv2.VideoCapture(state.camera_source, cv2.CAP_DSHOW)
+    else:
+        cap = cv2.VideoCapture(state.camera_source)
     
     # Optional: Force lower resolution for speed and stability
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
@@ -461,16 +499,24 @@ def process_traffic():
             
             # --- CRASH GUARD: If camera hangs, restart it ---
             if not ret:
-                print("⚠️ Camera hang. Re-initializing...")
-                cap.release()
-                time.sleep(0.5)
-                cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-                continue
+                if isinstance(state.camera_source, str):
+                    # Loop video file
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    continue
+                else:
+                    print(f"⚠️ Camera hang on {intersection_id}. Re-initializing...")
+                    cap.release()
+                    time.sleep(0.5)
+                    if os.name == 'nt':
+                        cap = cv2.VideoCapture(state.camera_source, cv2.CAP_DSHOW)
+                    else:
+                        cap = cv2.VideoCapture(state.camera_source)
+                    continue
             # ------------------------------------------------
 
             frame_count += 1
             if time.time() - fps_start >= 1:
-                system_status["fps"] = frame_count
+                state.system_status["fps"] = frame_count
                 frame_count = 0
                 fps_start = time.time()
 
@@ -511,35 +557,35 @@ def process_traffic():
                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
             # Update Shared Memory
-            vehicle_types = {"cars": cars, "trucks": trucks, "bikes": bikes, "pedestrians": pedestrians}
-            traffic_history.append(vehicle_count)
-            system_status["detections"] += vehicle_count
-            system_status["uptime"] = int((time.time() - start_time) / 60)
+            state.vehicle_types = {"cars": cars, "trucks": trucks, "bikes": bikes, "pedestrians": pedestrians}
+            state.traffic_history.append(vehicle_count)
+            state.system_status["detections"] += vehicle_count
+            state.system_status["uptime"] = int((time.time() - state.start_time) / 60)
 
             # Emergency detection
             emergency, vehicle_type = detect_emergency_vehicle(results)
             if emergency:
-                emergency_log.append(f"[{datetime.now().strftime('%H:%M:%S')}] 🚨 EMERGENCY: {vehicle_type} detected!")
-                emergency_log = emergency_log[-20:]  # Keep last 20
+                state.emergency_log.append(f"[{datetime.now().strftime('%H:%M:%S')}] 🚨 EMERGENCY: {vehicle_type} detected!")
+                state.emergency_log = state.emergency_log[-20:]  # Keep last 20
 
-            congestion = calculate_congestion(traffic_history)
+            congestion = calculate_congestion(state.traffic_history)
             decision, _ = control_traffic(vehicle_count, emergency, congestion)
-            current_decision = decision
+            state.current_decision = decision
 
             # Display
-            cv2.putText(frame, f"FPS: {system_status.get('fps', 0)}", (10, 30), 
+            cv2.putText(frame, f"FPS: {state.system_status.get('fps', 0)}", (10, 30), 
                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.imshow("Traffic AI v3.0", frame)
+            cv2.imshow(f"Traffic AI v4.0 - {state.name}", frame)
             
             if cv2.waitKey(1) & 0xFF == ord('q'): 
                 break
         
         except Exception as e:
-            print(f"❌ Error in loop: {e}")
+            print(f"❌ Error in loop for {intersection_id}: {e}")
             time.sleep(0.1) # Brief pause to prevent CPU spike
             
     cap.release()
-    cv2.destroyAllWindows()
+    cv2.destroyWindow(f"Traffic AI v4.0 - {state.name}")
 
 # --- CALLBACKS ---
 @dash_app.callback(
@@ -556,14 +602,20 @@ def process_traffic():
         Output('congestion-bar', 'color'),
         Output('congestion-status', 'children'),
         Output('current-time', 'children'),
-        Output('system-logs', 'children')
+        Output('system-logs', 'children'),
+        Output('camera-status-desc', 'children')
     ],
-    [Input('interval-component', 'n_intervals')]
+    [
+        Input('interval-component', 'n_intervals'),
+        Input('intersection-tabs', 'active_tab')
+    ]
 )
-def update_dashboard(n):
-    global traffic_history, vehicle_types, current_decision, system_status, emergency_log
-    
-    history_list = list(traffic_history)
+def update_dashboard(n, active_tab):
+    if not active_tab or active_tab not in intersections:
+        active_tab = list(intersections.keys())[0]
+        
+    state = intersections[active_tab]
+    history_list = list(state.traffic_history)
     
     # Traffic Graph
     traffic_fig = go.Figure()
@@ -589,7 +641,7 @@ def update_dashboard(n):
     pie_fig = go.Figure()
     pie_fig.add_trace(go.Pie(
         labels=['Cars', 'Trucks', 'Bikes', 'Pedestrians'],
-        values=[vehicle_types['cars'], vehicle_types['trucks'], vehicle_types['bikes'], vehicle_types['pedestrians']],
+        values=[state.vehicle_types['cars'], state.vehicle_types['trucks'], state.vehicle_types['bikes'], state.vehicle_types['pedestrians']],
         hole=0.6,
         marker=dict(colors=['#00f5ff', '#ff6b35', '#00ff88', '#8b5cf6']),
         textinfo='percent+label',
@@ -627,8 +679,8 @@ def update_dashboard(n):
     # Metrics
     vehicle_count = history_list[-1] if history_list else 0
     congestion = calculate_congestion(history_list)
-    fps = system_status.get('fps', 0)
-    uptime = system_status.get('uptime', 0)
+    fps = state.system_status.get('fps', 0)
+    uptime = state.system_status.get('uptime', 0)
     
     # Decision Badge
     decision_text, decision_type = control_traffic(vehicle_count, False, congestion)
@@ -660,28 +712,35 @@ def update_dashboard(n):
     default_logs = [
         f"[{datetime.now().strftime('%H:%M:%S')}] ✅ System operational",
         f"[{datetime.now().strftime('%H:%M:%S')}] 🔄 Processing frames at {fps} FPS",
-        f"[{datetime.now().strftime('%H:%M:%S')}] 📊 Total detections: {system_status.get('detections', 0)}"
+        f"[{datetime.now().strftime('%H:%M:%S')}] 📊 Total detections: {state.system_status.get('detections', 0)}"
     ]
-    all_logs = emergency_log[-10:] + default_logs if emergency_log else default_logs
+    all_logs = state.emergency_log[-10:] + default_logs if state.emergency_log else default_logs
     logs_display = html.Div([html.P(log, className="mb-1") for log in all_logs[-8:]])
+    
+    # Camera Status Description
+    camera_status_desc = f"ID: {state.id.upper()} | Source: {state.camera_source}"
     
     return (
         traffic_fig, pie_fig, pred_fig,
         str(vehicle_count), f"{congestion}%", str(fps), str(uptime),
         decision_badge, congestion, bar_color, congestion_status,
-        current_time, logs_display
+        current_time, logs_display, camera_status_desc
     )
 
 # --- MAIN ---
 if __name__ == "__main__":
     print("\n" + "="*60)
-    print("🚦 TRAFFIC AI COMMAND CENTER v3.0")
+    print("🚦 TRAFFIC AI COMMAND CENTER v4.0 (Multi-Intersection)")
     print("="*60)
-    print("🔄 Starting video processing thread...")
+    print("🔄 Starting video processing threads...")
     
-    t = threading.Thread(target=process_traffic)
-    t.daemon = True
-    t.start()
+    # Start a thread for each intersection
+    threads = []
+    for iid in intersections.keys():
+        t = threading.Thread(target=process_traffic, args=(iid,))
+        t.daemon = True
+        t.start()
+        threads.append(t)
     
     print("🌐 Launching dashboard at http://0.0.0.0:8050")
     print("="*60 + "\n")
