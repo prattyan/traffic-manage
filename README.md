@@ -92,13 +92,34 @@ python app.py
 ```
 📂 traffic-monitoring-system/
 │
+├── evaluation_results/     # Generated evaluation plots
 ├── traffic_video.mp4       # Sample traffic footage
 ├── traffic_lstm.h5         # Pre-trained LSTM model
 ├── yolov8n.pt              # YOLOv8 nano weights
 ├── app.py                  # Main application script
+├── evaluate.py             # Evaluation pipeline script
 ├── requirements.txt        # Dependencies
 └── README.md               # Project documentation
 ```
+
+---
+
+## 📊 Public Traffic Datasets & Evaluation
+
+To benchmark the detection and prediction models, we use standardized public datasets.
+
+### Supported Datasets
+1. **[UA-DETRAC](https://detrac-db.rit.albany.edu/)**: A challenging real-world multi-object detection and multi-object tracking benchmark.
+2. **[BDD100K](https://bdd-data.berkeley.edu/)**: A diverse driving dataset for heterogeneous multitask learning.
+3. **[METR-LA / PEMS-BAY](https://github.com/liyaguang/DCRNN)**: Traffic forecasting datasets containing traffic speed readings.
+
+### Running the Evaluation Pipeline
+We provide an evaluation script to calculate Accuracy, Precision, Recall, Specificity, F1-score, Confusion Matrix, Correlation Matrix, and FPS.
+
+```bash
+python evaluate.py --dataset path/to/dataset
+```
+*Note: If no dataset is provided, the script will run a demonstration using synthetic data and the sample video to generate the required plots in the `evaluation_results/` directory.*
 
 ---
 
