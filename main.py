@@ -27,10 +27,11 @@ class IntersectionState:
         self.camera_source = camera_source
         self.traffic_history = deque(maxlen=100)
         self.vehicle_types = {"cars": 0, "trucks": 0, "bikes": 0, "pedestrians": 0}
-        self.emergency_log = []
+        self.emergency_log = deque(maxlen=20)
         self.current_decision = "Initializing..."
         self.system_status = {"fps": 0, "uptime": 0, "detections": 0}
         self.start_time = time.time()
+        self.latest_frame = None
 
 # Define multiple intersections here
 intersections = {
@@ -520,7 +521,7 @@ def process_traffic(intersection_id):
                 frame_count = 0
                 fps_start = time.time()
 
-            results = yolo_model(frame, verbose=False)
+            results = list(yolo_model(frame, verbose=False, stream=True))
             
             # --- COUNTING LOGIC ---
             cars, trucks, bikes, pedestrians = 0, 0, 0, 0
@@ -566,7 +567,6 @@ def process_traffic(intersection_id):
             emergency, vehicle_type = detect_emergency_vehicle(results)
             if emergency:
                 state.emergency_log.append(f"[{datetime.now().strftime('%H:%M:%S')}] 🚨 EMERGENCY: {vehicle_type} detected!")
-                state.emergency_log = state.emergency_log[-20:]  # Keep last 20
 
             congestion = calculate_congestion(state.traffic_history)
             decision, _ = control_traffic(vehicle_count, emergency, congestion)
@@ -575,17 +575,18 @@ def process_traffic(intersection_id):
             # Display
             cv2.putText(frame, f"FPS: {state.system_status.get('fps', 0)}", (10, 30), 
                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.imshow(f"Traffic AI v4.0 - {state.name}", frame)
             
-            if cv2.waitKey(1) & 0xFF == ord('q'): 
-                break
+            # Store frame for main thread to display
+            state.latest_frame = frame
+            
+            # Free memory explicitly
+            del results
         
         except Exception as e:
             print(f"❌ Error in loop for {intersection_id}: {e}")
             time.sleep(0.1) # Brief pause to prevent CPU spike
             
     cap.release()
-    cv2.destroyWindow(f"Traffic AI v4.0 - {state.name}")
 
 # --- CALLBACKS ---
 @dash_app.callback(
@@ -745,4 +746,22 @@ if __name__ == "__main__":
     print("🌐 Launching dashboard at http://0.0.0.0:8050")
     print("="*60 + "\n")
     
-    dash_app.run(debug=False, host='0.0.0.0', port=8050)
+    # Run Dash app in a separate thread
+    dash_thread = threading.Thread(target=lambda: dash_app.run(debug=False, host='0.0.0.0', port=8050, use_reloader=False))
+    dash_thread.daemon = True
+    dash_thread.start()
+
+    # Main thread handles OpenCV windows to avoid GUI thread issues
+    try:
+        while True:
+            for iid, state in intersections.items():
+                if state.latest_frame is not None:
+                    cv2.imshow(f"Traffic AI v4.0 - {state.name}", state.latest_frame)
+            
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+            time.sleep(0.03) # ~30 FPS refresh rate for display
+    except KeyboardInterrupt:
+        print("Shutting down...")
+    finally:
+        cv2.destroyAllWindows()
