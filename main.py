@@ -21,6 +21,10 @@ import plotly.graph_objs as go
 import plotly.express as px
 import os
 from flask import Response
+import base64
+import uuid
+
+os.makedirs("cache", exist_ok=True)
 
 # --- GLOBAL SHARED MEMORY (Per Intersection) ---
 class IntersectionState:
@@ -38,10 +42,11 @@ class IntersectionState:
         self.system_status = {"fps": 0, "uptime": 0, "detections": 0}
         self.start_time = time.time()
 
-# Define multiple intersections here
-intersections = {
-    "cam1": IntersectionState("cam1", "Broadway & 42nd St", "traffic_video.mp4") 
-}
+# # Define multiple intersections here
+# intersections = {
+#     "cam1": IntersectionState("cam1", "Broadway & 42nd St", "traffic_video.mp4") 
+# }
+intersections = {}
 
 # --- LOAD MODELS ---
 print("🔄 Loading YOLO Model...")
@@ -341,15 +346,69 @@ dash_app.layout = dbc.Container([
         ], fluid=True)
     ], className="navbar-glass mb-4 py-3"),
 
-    # Intersection Tabs
-    dbc.Tabs(
-        id="intersection-tabs",
-        active_tab=list(intersections.keys())[0],
-        children=[
-            dbc.Tab(label=state.name, tab_id=iid) for iid, state in intersections.items()
-        ],
-        className="mb-4"
-    ),
+    # Intersection Tabs and Add Stream Button
+    dbc.Row([
+        dbc.Col([
+            dbc.Tabs(
+                id="intersection-tabs",
+                active_tab=list(intersections.keys())[0] if intersections else None,
+                children=[
+                    dbc.Tab(label=state.name, tab_id=iid) for iid, state in intersections.items()
+                ],
+                className="mb-0"
+            )
+        ], width="auto"),
+        dbc.Col([
+            dbc.Button("＋ Add Stream", id="btn-add-stream", color="primary", className="fw-bold text-light", style={'fontFamily': 'Outfit', 'borderRadius': '8px'})
+        ], width="auto", className="ms-auto")
+    ], className="mb-4 d-flex align-items-center"),
+
+    # Add Stream Modal
+    dbc.Modal([
+        dbc.ModalHeader(dbc.ModalTitle("Add New Camera Stream", style={'fontFamily': 'Outfit', 'fontWeight': '600'})),
+        dbc.ModalBody([
+            dbc.Label("Street Name / Location", className="text-light"),
+            dbc.Input(id="input-street-name", type="text", placeholder="e.g. 5th Ave & 42nd St", className="mb-4 bg-dark text-light border-secondary"),
+            
+            dbc.Label("Source Type", className="text-light"),
+            dbc.RadioItems(
+                id="input-source-type",
+                options=[
+                    {"label": " IP Camera (RTSP/HTTP)", "value": "ip"},
+                    {"label": " Video File Upload", "value": "upload"}
+                ],
+                value="upload",
+                inline=True,
+                className="mb-4 text-light"
+            ),
+            
+            html.Div(id="ip-fields", children=[
+                dbc.Label("IP Stream URL", className="text-light"),
+                dbc.Input(id="input-ip-url", type="text", placeholder="rtsp://user:pass@ip:port/stream", className="mb-3 bg-dark text-light border-secondary"),
+            ], style={'display': 'none'}),
+            
+            html.Div(id="upload-fields", children=[
+                dbc.Label("Upload Video File", className="text-light"),
+                dcc.Upload(
+                    id='upload-video',
+                    children=html.Div(['Drag and Drop or ', html.A('Select a Video File')]),
+                    style={
+                        'width': '100%', 'height': '80px', 'lineHeight': '80px',
+                        'borderWidth': '2px', 'borderStyle': 'dashed',
+                        'borderRadius': '8px', 'textAlign': 'center', 'marginBottom': '10px',
+                        'borderColor': '#3b82f6', 'color': '#cbd5e1', 'cursor': 'pointer'
+                    },
+                    multiple=False
+                ),
+                html.Div(id='upload-status', className="text-info small mb-3")
+            ], style={'display': 'block'}),
+            
+        ], style={'background': '#0f172a'}),
+        dbc.ModalFooter([
+            dbc.Button("Cancel", id="btn-cancel-stream", className="ms-auto", color="secondary"),
+            dbc.Button("Start Feed", id="btn-submit-stream", color="primary")
+        ], style={'background': '#0f172a'})
+    ], id="modal-add-stream", is_open=False, backdrop="static", centered=True),
 
     # Row 1: Key Metrics (4 cols)
     dbc.Row([
@@ -607,6 +666,15 @@ def process_traffic(intersection_id):
     ]
 )
 def update_dashboard(n, active_tab):
+    if not intersections:
+        empty_fig = go.Figure()
+        empty_fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+        return ("", empty_fig, empty_fig, empty_fig, "0", "0%", "0", "0", 
+                html.Div("NO FEED ACTIVE", className="decision-badge", style={'color': '#cbd5e1', 'border': '1px solid #cbd5e1'}), 
+                0, "success", html.Span("NO FEED", style={'color': '#cbd5e1'}), 
+                datetime.now().strftime("%b %d, %Y | %H:%M:%S"), 
+                html.Div("Please add a camera feed to start."), "ID: N/A | Source: N/A")
+
     if not active_tab or active_tab not in intersections:
         active_tab = list(intersections.keys())[0]
     state = intersections[active_tab]
@@ -652,6 +720,83 @@ def update_dashboard(n, active_tab):
     
     return (f"/video_feed/{active_tab}", traffic_fig, pie_fig, pred_fig, str(vehicle_count), f"{congestion}%", str(fps), str(uptime), decision_badge, congestion, bar_color, congestion_status, current_time, logs_display, f"ID: {state.id.upper()} | Source: {state.camera_source}")
 
+# --- ADD STREAM CALLBACKS ---
+@dash_app.callback(
+    [Output("modal-add-stream", "is_open"), Output('upload-status', 'children')],
+    [Input("btn-add-stream", "n_clicks"), Input("btn-cancel-stream", "n_clicks")],
+    [State("modal-add-stream", "is_open")]
+)
+def toggle_modal(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open, ""
+    return is_open, ""
+
+@dash_app.callback(
+    [Output("ip-fields", "style"), Output("upload-fields", "style")],
+    [Input("input-source-type", "value")]
+)
+def toggle_fields(source_type):
+    if source_type == "ip":
+        return {'display': 'block'}, {'display': 'none'}
+    return {'display': 'none'}, {'display': 'block'}
+
+@dash_app.callback(
+    [Output("intersection-tabs", "children"),
+     Output("intersection-tabs", "active_tab")],
+    [Input("btn-submit-stream", "n_clicks")],
+    [State("input-street-name", "value"),
+     State("input-source-type", "value"),
+     State("input-ip-url", "value"),
+     State("upload-video", "contents"),
+     State("upload-video", "filename"),
+     State("intersection-tabs", "children"),
+     State("intersection-tabs", "active_tab")]
+)
+def handle_submit_stream(n_clicks, street_name, source_type, ip_url, upload_contents, filename, current_tabs, current_active):
+    if not n_clicks:
+        raise dash.exceptions.PreventUpdate
+        
+    if not street_name:
+        street_name = f"Camera {len(intersections) + 1}"
+        
+    camera_id = f"cam{len(intersections) + 1}_{uuid.uuid4().hex[:6]}"
+    
+    source = None
+    if source_type == "ip" and ip_url:
+        source = ip_url
+    elif source_type == "upload" and upload_contents:
+        try:
+            content_type, content_string = upload_contents.split(',')
+            decoded = base64.b64decode(content_string)
+            file_path = os.path.join("cache", f"{camera_id}_{filename}")
+            with open(file_path, "wb") as f:
+                f.write(decoded)
+            source = file_path
+        except Exception as e:
+            print("Error uploading file:", e)
+            raise dash.exceptions.PreventUpdate
+    else:
+        raise dash.exceptions.PreventUpdate
+        
+    new_state = IntersectionState(camera_id, street_name, source)
+    intersections[camera_id] = new_state
+    
+    spawn_camera_threads(camera_id)
+    
+    new_tab = dbc.Tab(label=street_name, tab_id=camera_id)
+    current_tabs.append(new_tab)
+    
+    return current_tabs, camera_id
+
+def spawn_camera_threads(iid):
+    t = threading.Thread(target=process_traffic, args=(iid,))
+    t.daemon = True
+    t.start()
+    
+    ai_t = threading.Thread(target=ai_worker, args=(iid,))
+    ai_t.daemon = True
+    ai_t.start()
+    
 # --- MAIN ---
 if __name__ == "__main__":
     print("\n" + "="*60)
@@ -659,16 +804,8 @@ if __name__ == "__main__":
     print("="*60)
     print("🔄 Starting video processing threads...")
     
-    threads = []
     for iid in intersections.keys():
-        t = threading.Thread(target=process_traffic, args=(iid,))
-        t.daemon = True
-        t.start()
-        
-        ai_t = threading.Thread(target=ai_worker, args=(iid,))
-        ai_t.daemon = True
-        ai_t.start()
-        threads.append(t)
+        spawn_camera_threads(iid)
     
     print("🌐 Launching dashboard at http://0.0.0.0:8050")
     print("="*60 + "\n")
