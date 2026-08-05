@@ -25,7 +25,7 @@ Click the **Fork** button on GitHub to create your own copy of the repository.
 
 ### 2️⃣ Clone Your Fork
 ```bash
-git clone https://github.com/<your-username>/traffic-manage.git
+git clone https://github.com/prattyan/traffic-manage.git
 cd traffic-manage
 ```
 

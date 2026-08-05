@@ -50,7 +50,7 @@ intersections = {}
 
 # --- LOAD MODELS ---
 print("🔄 Loading YOLO Model...")
-yolo_model = YOLO("yolov8n.pt")
+yolo_model = YOLO("yolov8x.pt")
 print("✅ YOLO Loaded Successfully")
 
 # Simulated Brain (Fallback)
@@ -87,24 +87,25 @@ def calculate_congestion(history):
     return min(100, int((np.mean(recent) / 15) * 100))
 
 def detect_emergency_vehicle(frame, boxes):
-    # Analyze bounding boxes for bright "Emergency Red" to classify fire trucks/ambulances
+    # Robust heuristic for emergency vehicles (Fire Trucks / Ambulances)
     for (x1, y1, x2, y2, label, conf, category) in boxes:
-        if category in ['trucks', 'cars'] and conf > 0.4:
+        if category in ['trucks', 'cars'] and conf > 0.3:
             crop = frame[y1:y2, x1:x2]
             if crop.size == 0: continue
             
+            # Aspect ratio check (Ambulances/Fire trucks tend to be larger/boxier)
+            aspect_ratio = float(x2 - x1) / float(y2 - y1)
+            
             hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-            lower_red1 = np.array([0, 120, 70])
-            upper_red1 = np.array([10, 255, 255])
-            lower_red2 = np.array([170, 120, 70])
-            upper_red2 = np.array([180, 255, 255])
             
-            mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
-            mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
-            red_mask = mask1 + mask2
+            # Check for Emergency Red (Fire trucks)
+            lower_red1, upper_red1 = np.array([0, 120, 70]), np.array([10, 255, 255])
+            lower_red2, upper_red2 = np.array([170, 120, 70]), np.array([180, 255, 255])
+            mask_red = cv2.inRange(hsv, lower_red1, upper_red1) + cv2.inRange(hsv, lower_red2, upper_red2)
+            red_ratio = cv2.countNonZero(mask_red) / (crop.shape[0] * crop.shape[1] + 1)
             
-            red_ratio = cv2.countNonZero(red_mask) / (crop.shape[0] * crop.shape[1] + 1)
-            if red_ratio > 0.25:
+            # Check for White/Yellow with Red stripes (Ambulances)
+            if category == 'trucks' and (red_ratio > 0.20 or (red_ratio > 0.05 and aspect_ratio > 0.8)):
                 return True, "Fire Truck / Ambulance"
     return False, None
 
@@ -139,49 +140,42 @@ def predict_traffic(history):
 
 # --- CUSTOM CSS FOR GLASSMORPHISM ---
 CUSTOM_CSS = """
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-    --primary: #3b82f6;
-    --success: #10b981;
-    --warning: #f59e0b;
-    --danger: #ef4444;
-    --surface: rgba(30, 41, 59, 0.7);
+    --primary: #1d4ed8;
+    --success: #15803d;
+    --warning: #b45309;
+    --danger: #b91c1c;
+    --surface: #1e293b;
     --bg-main: #0f172a;
-    --border: rgba(255, 255, 255, 0.08);
+    --border: #334155;
 }
 
 body {
     background-color: var(--bg-main) !important;
-    background-image: radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 40%), radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.05), transparent 40%) !important;
     font-family: 'Inter', sans-serif !important;
     min-height: 100vh;
-    color: #f8fafc !important;
+    color: #f1f5f9 !important;
 }
 
 .glass-card {
     background: var(--surface) !important;
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
     border: 1px solid var(--border) !important;
-    border-radius: 16px !important;
-    box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2) !important;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+    transition: box-shadow 0.2s ease !important;
     overflow: hidden;
 }
 
 .glass-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 32px -4px rgba(0, 0, 0, 0.3) !important;
-    border-color: rgba(59, 130, 246, 0.3) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
 }
 
 .neon-text {
-    font-family: 'Outfit', sans-serif !important;
-    background: linear-gradient(90deg, #60a5fa, #a78bfa);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    font-weight: 800;
+    font-family: 'Inter', sans-serif !important;
+    color: #f8fafc !important;
+    font-weight: 700;
 }
 
 .status-indicator {
@@ -331,9 +325,8 @@ dash_app.layout = dbc.Container([
             dbc.Row([
                 dbc.Col([
                     html.Div([
-                        html.Span("🚦", style={'fontSize': '1.8rem', 'marginRight': '12px'}),
-                        html.Span("TRAFFIC AI", className="neon-text", style={'fontSize': '1.6rem', 'marginRight': '8px'}),
-                        html.Span("Command Center", style={'fontSize': '1.2rem', 'color': '#94a3b8', 'fontWeight': '400', 'fontFamily': 'Outfit'})
+                        html.Span("FEDERAL TRAFFIC", className="neon-text", style={'fontSize': '1.6rem', 'marginRight': '8px'}),
+                        html.Span("COMMAND CENTER", style={'fontSize': '1.2rem', 'color': '#94a3b8', 'fontWeight': '500', 'fontFamily': 'Inter'})
                     ], className="d-flex align-items-center")
                 ], width="auto"),
                 dbc.Col([
@@ -528,7 +521,7 @@ dash_app.layout = dbc.Container([
         dbc.Col([
             html.Div([
                 html.P([
-                    "Traffic AI Command Center | Premium Edition"
+                    "Department of Transportation - Traffic AI Command Center | Official Use Only"
                 ], className="text-center mb-0", style={'color': '#64748b', 'fontSize': '0.85rem'})
             ], className="py-4")
         ])
@@ -554,7 +547,7 @@ def generate_frames(intersection_id):
                     yield (b'--frame\r\n'
                            b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
                 last_frame_id = current_frame_id
-        time.sleep(0.033) # Throttle to ~30 FPS explicitly
+        time.sleep(0.020) # Throttle to ~50 FPS explicitly
 
 @dash_app.server.route('/video_feed/<intersection_id>')
 def video_feed(intersection_id):
@@ -615,7 +608,7 @@ def process_traffic(intersection_id):
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     frame_count, fps_start = 0, time.time()
     
-    target_fps = 60
+    target_fps = 50
     frame_time = 1.0 / target_fps
     
     while True:
