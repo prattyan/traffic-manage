@@ -363,7 +363,7 @@ def generate_synthetic_evaluation_data():
     y_true_traffic = np.cumsum(np.random.randn(time_steps)) + 100
     y_pred_traffic = y_true_traffic + np.random.normal(0, 5, time_steps)
     
-    print(f"✅ Generated {n_samples} detection samples and {time_steps} traffic predictions")
+    print(f"Generated {n_samples} detection samples and {time_steps} traffic predictions")
     
     return y_true_detection, y_pred_detection, y_true_traffic, y_pred_traffic
 

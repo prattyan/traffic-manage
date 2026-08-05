@@ -49,9 +49,9 @@ class IntersectionState:
 intersections = {}
 
 # --- LOAD MODELS ---
-print("🔄 Loading YOLO Model...")
+print("Loading YOLO Model...")
 yolo_model = YOLO("yolov8x.pt")
-print("✅ YOLO Loaded Successfully")
+print("YOLO Loaded Successfully")
 
 # Simulated Brain (Fallback)
 class TrafficBrain:
@@ -62,7 +62,7 @@ class TrafficBrain:
             return [[1]] if trend > 0 else [[0]]
         return [[0]]
 
-print("⚠️ Using Simulated Brain (Fallback)")
+print("Using Simulated Brain (Fallback)")
 lstm_model = TrafficBrain()
 
 # --- HELPER FUNCTIONS ---
